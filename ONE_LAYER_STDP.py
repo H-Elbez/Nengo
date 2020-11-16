@@ -1,11 +1,8 @@
 import nengo
-#import nengo_dl
-#import nengo_ocl
 import numpy as np
 from numpy import random
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-#from core.STDP import STDP,STDPLIF
 from simplified_stdp import STDP
 from DataLog import DataLog
 import tensorflow as tf
