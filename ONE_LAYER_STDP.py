@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 #from core.STDP import STDP,STDPLIF
 from simplified_stdp import STDP
-from core.DataLog import DataLog
+from DataLog import DataLog
 import tensorflow as tf
 import os
 from nengo.dists import Choice
@@ -25,19 +25,10 @@ input_nbr = 400
 
 (image_train, label_train), (image_test, label_test) = (tf.keras.datasets.mnist.load_data())
 
-#image_train = image_train / 255 
-#image_test = image_test / 255
-
 #select the 0s and 1s as the two classes from MNIST data
 image_train_filtered = []
 label_train_filtered = []
 
-#v = 0
-#for i in range(0,input_nbr):
-#        image_train_filtered.append(image_train[i])
-#        label_train_filtered.append(label_train[i])
-
-#while i < globalInput:
 x = 0
 for i in range(0,input_nbr):
   if label_train[i] == x:
@@ -47,16 +38,6 @@ for i in range(0,input_nbr):
             x = 1
         else:
             x = 0
-
-#for i in range(0,input_nbr):
-#   if label_train[i] == 7:
-#        image_train_filtered.append(image_train[i])
-#        label_train_filtered.append(label_train[i])
-
-#for i in range(0,input_nbr):
-#    if label_train[i] == 9:
-#       image_train_filtered.append(image_train[i])
-#       label_train_filtered.append(label_train[i])
 
 image_train_filtered = np.array(image_train_filtered)
 label_train_filtered = np.array(label_train_filtered)
@@ -104,11 +85,6 @@ def AllHeatMapSave(network,probe,folder,samples=1,neuron=1):
         plt.cla()
         i = int(i + step)
 
-    #for i in range(0,100):
-    #    plt.matshow(np.reshape(network.data[probe][:,neuron][i*x],(28,28)),cmap="Reds")
-    #    plt.title(i*x)
-    #    plt.savefig(name+"/"+str(neuron)+":"+str(i*x)+".png")
-    
 #############################
 
 #############################
@@ -116,7 +92,6 @@ def AllHeatMapSave(network,probe,folder,samples=1,neuron=1):
 #############################
 
 presentation_time = 0.20 #0.35
-pause_time = 0.10 #0.15
 #input layer
 n_in = 784
 n_neurons = 2
@@ -137,8 +112,7 @@ with model:
 
     # weights randomly initiated 
     layer1_weights = random.random((n_neurons, 784))
-    #layer1_weights = np.round(layer1_weights,6)
-    #layer1_weights = np.full((n_neurons, 784),1)
+   
 
     # define first layer
     layer1 = nengo.Ensemble(
@@ -150,7 +124,6 @@ with model:
          intercepts=nengo.dists.Choice([0])
          )
 
-    #layer2 = nengo.Ensemble(n_neurons, 1,label="layer2",neuron_type=nengo.neurons.LIFRate(),bias=Choice([0.]),gain=Choice([2.]))
     # define connection between the two layers
     conn1 = nengo.Connection(
         input_layer.neurons,
@@ -158,41 +131,23 @@ with model:
         transform=layer1_weights,
         synapse=None,
         learning_rule_type=STDP()
-            #learning_rate=1e-5,
-            #max_weight=0.99,min_weight=0.01)#,pre_synapse=None learning_rate=1e-4
         )
 
     # create inhibitory layer 
     inhib_wegihts = (np.full((n_neurons, n_neurons), 1) - np.eye(n_neurons)) * -2
 
-    #for i in range(0,n_neurons):
-    #    inhib_wegihts[i,i] = 0
-
     inhib = nengo.Connection(layer1.neurons, layer1.neurons, transform=inhib_wegihts)
-    
-    #nengo.Connection(layer2.neurons, layer1.neurons, transform=np.full((n_neurons,n_neurons),-2))
-    #nengo.Connection(layer2.neurons,layer1.neurons, transform=np.full((n_neurons,n_neurons),-2))
-    
+        
     #############################
 
     #############################
     # setup the probes
     #############################
 
-   # input_probe = nengo.Probe(input_layer.neurons,"output") # RATELIF : ('output', 'input', 'rates')
-    #layer1_probe = nengo.Probe(layer1.neurons,"spikes") # ('output', 'input', 'spikes', 'voltage', 'refractory_time')
-    connection_layer1_probe = nengo.Probe(conn1,"weights",label="layer1_synapses") # ('output', 'input', 'weights')
-    #connection_layer2_probe = nengo.Probe(conn2,"weights")
-    #inhib_input_probe = nengo.Probe(inhib,"input")
-    #inhib_output_probe = nengo.Probe(inhib,"output")
-    #layer1_voltage_probe = nengo.Probe(layer1.neurons,"voltage")
-    #STDP_probe = nengo.Probe(conn1.learning_rule,"delta")
-
+    connection_layer1_probe = nengo.Probe(conn1,"weights",label="layer1_synapses") 
+  
     nengo.Node(log)
-
-    #pdm.add_probes([connection_layer1_probe])
-    #############################
-
+    
 with nengo.Simulator(model) as sim:
 
     log.set(sim,"Log.txt",False,False)
@@ -203,36 +158,8 @@ with nengo.Simulator(model) as sim:
 pickle.dump(sim.data[connection_layer1_probe][-1], open( "mnist_params_STDP", "wb" ))
 log.closeLog()
 
-#presentation_time * label_train_filtered.shape[0]
-#print(sim.data[connection_layer1_probe].shape[0])
 now = str(datetime.now().time())
 folder = "My Sim "+now
 
-#print(sim.data[STDP_probe].shape)
-
-#plt.subplot(3, 1, 1)
-#plt.plot(sim.trange(),sim.data[STDP_probe][:,0])
-
-#plt.plot(sim.trange(),sim.data[inhib_input_probe][:,0],label="input spikes")
-#plt.plot(sim.trange(),sim.data[inhib_output_probe][:,0],label="output spikes")
-#plt.plot(sim.trange(),sim.data[conn1].weights[:,0])
-#plt.legend()
-#plt.grid(True)
-#plt.subplot(3, 1, 2) 
-#plt.plot(sim.trange(),sim.data[connection_layer1_probe][:,0])
-#plt.plot(sim.trange(),sim.data[inhib_output_probe][:,1],label="output spikes")
-#plt.legend()
-#plt.grid(True)
-#plt.subplot(3, 1, 3)
-#plt.plot(sim.trange(),sim.data[layer1_voltage_probe][:,0],label="voltage n 1")
-#plt.plot(sim.trange(),sim.data[layer1_voltage_probe][:,1],label="voltage n 2")
-#plt.legend()
-#plt.grid(True)
-#plt.show()
-
-#print("time of run : "+str(presentation_time * label_train_filtered.shape[0]))
-#print(sim.trange())
-print(np.min(sim.data[connection_layer1_probe]),np.max(sim.data[connection_layer1_probe]))
 for i in range(0,(n_neurons)):
-    #AllHeatMapSave(sim,connection_layer1_probe,folder,sim.data[connection_layer1_probe].shape[0],i)
     HeatMapSave(sim,folder,connection_layer1_probe,sim.data[connection_layer1_probe].shape[0],i)
