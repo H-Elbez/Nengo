@@ -43,10 +43,7 @@ class PresentInputWithPause(Process):
             t = round(t,6)
             # Pause
             if t > ((presentation_time + pause_time ) * self.index + presentation_time) and t < round((presentation_time + pause_time) * (self.index + 1),6) :
-                
-                i = 0
-                # return np.zeros((len(inputs)))
-                return inputs[i % n]
+                return None
             else:
             # Send input
                 #if t >= (presentation_time + pause_time) * i:
@@ -58,7 +55,7 @@ class PresentInputWithPause(Process):
                 if t == round((presentation_time + pause_time) * (self.index + 1),6):
                     self.index +=1
 
-                # i = 0
+                i = 0
                 return inputs[i % n]
        
         return step_presentinput
