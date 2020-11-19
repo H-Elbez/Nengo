@@ -18,7 +18,7 @@ plt.rcParams.update({'figure.max_open_warning': 0})
 #############################
 
 img_rows, img_cols = 28, 28
-input_nbr = 400
+input_nbr = 200
 
 (image_train, label_train), (image_test, label_test) = (tf.keras.datasets.mnist.load_data())
 
@@ -26,15 +26,19 @@ input_nbr = 400
 image_train_filtered = []
 label_train_filtered = []
 
-x = 0
+# x = 0
+# for i in range(0,input_nbr):
+#   if label_train[i] == x:
+#         image_train_filtered.append(image_train[i])
+#         label_train_filtered.append(label_train[i])
+#         if x == 0:
+#             x = 1
+#         else:
+#             x = 0
+
 for i in range(0,input_nbr):
-  if label_train[i] == x:
-        image_train_filtered.append(image_train[i])
-        label_train_filtered.append(label_train[i])
-        if x == 0:
-            x = 1
-        else:
-            x = 0
+    image_train_filtered.append(image_train[i])
+    label_train_filtered.append(label_train[i])
 
 image_train_filtered = np.array(image_train_filtered)
 label_train_filtered = np.array(label_train_filtered)
@@ -88,10 +92,10 @@ def AllHeatMapSave(network,probe,folder,samples=1,neuron=1):
 # Model construction
 #############################
 
-presentation_time = 0.20 #0.35
+presentation_time = 0.35 #0.35
 #input layer
 n_in = 784
-n_neurons = 2
+n_neurons = 10
 
 log = DataLog()
 with model:
@@ -117,7 +121,8 @@ with model:
          1,
          neuron_type=nengo.neurons.AdaptiveLIF(),
          label="layer1",
-         max_rates=nengo.dists.Uniform(22,22),
+         noise=nengo.processes.WhiteNoise(dist=nengo.dists.Gaussian(0, 22), seed=5),
+         max_rates=nengo.dists.Uniform(30,40),
          intercepts=nengo.dists.Choice([0])
          )
 
@@ -133,7 +138,15 @@ with model:
     # create inhibitory layer 
     inhib_wegihts = (np.full((n_neurons, n_neurons), 1) - np.eye(n_neurons)) * -2
 
-    inhib = nengo.Connection(layer1.neurons, layer1.neurons, transform=inhib_wegihts)
+    
+    inhib = nengo.Connection(
+        layer1.neurons,
+        layer1.neurons,
+        synapse=0.0025,
+        transform=-inhib_wegihts*(n_neurons-1),
+    )
+
+    # inhib = nengo.Connection(layer1.neurons, layer1.neurons, transform=inhib_wegihts, synapse=0.08)
         
     #############################
 
@@ -160,3 +173,4 @@ folder = "My Sim "+now
 
 for i in range(0,(n_neurons)):
     HeatMapSave(sim,folder,connection_layer1_probe,sim.data[connection_layer1_probe].shape[0],i)
+    # AllHeatMapSave(sim,folder=folder,probe=connection_layer1_probe,samples=sim.data[connection_layer1_probe].shape[0],neuron=i)
