@@ -5,7 +5,7 @@ from nengo.builder import Builder
 from nengo.builder.learning_rules import get_pre_ens, get_post_ens
 from nengo.builder.operator import Operator
 from nengo.builder.signal import Signal
-from nengo.params import BoolParam, NumberParam, StringParam
+from nengo.params import BoolParam, NumberParam, StringParam, Default
 import numpy as np
 import math 
 
@@ -24,13 +24,11 @@ class STDP(nengo.learning_rules.LearningRuleType):
     probeable = ('pre_trace', 'post_trace', 'pre_scale', 'post_scale')
 
     # Parameters
-       # var max_weight = 1.0f
-       # var min_weight = 0.0001f
-       # var alf_p = 0.01f
-       # var alf_n = 0.005f
-       # var beta_p = 1.5f
-       # var beta_n = 2.5f
 
+    pre_tau = NumberParam('pre_tau', low=0, low_open=True)
+    pre_amp = NumberParam('pre_amp', low=0, low_open=True)
+    post_tau = NumberParam('post_tau', low=0, low_open=True)
+    post_amp = NumberParam('post_amp', low=0, low_open=True)
     alf_p = NumberParam('alf_p', low=0, low_open=True)
     alf_n = NumberParam('alf_n', low=0, low_open=True)
     beta_p = NumberParam('beta_p', low=0, low_open=True)
@@ -38,17 +36,26 @@ class STDP(nengo.learning_rules.LearningRuleType):
     bounds = StringParam('bounds')
     max_weight = NumberParam('max_weight')
     min_weight = NumberParam('min_weight')
-
+    learning_rate = NumberParam("learning_rate", low=0, readonly=True, default=1e-4)
     def __init__(
             self,
             alf_p=0.01,
-            alf_n=0.005,
-            beta_p=1.5,
-            beta_n=2.5,
+            alf_n=0.009,
+            beta_p=0.5,
+            beta_n=0.6,
             bounds='hard',
             max_weight=1.0,
-            min_weight=0.0001
+            min_weight=0.0001,
+            pre_tau=0.0168,
+            post_tau=0.0168,
+            pre_amp=1.,
+            post_amp=1.,
+            learning_rate=Default,
     ):
+        self.pre_tau = pre_tau
+        self.post_tau = post_tau
+        self.pre_amp = pre_amp
+        self.post_amp = post_amp
         self.alf_p = alf_p
         self.alf_n = alf_n
         self.beta_p = beta_p
@@ -56,7 +63,7 @@ class STDP(nengo.learning_rules.LearningRuleType):
         self.bounds = bounds
         self.max_weight = max_weight
         self.min_weight = min_weight
-        super(STDP, self).__init__()
+        super().__init__(learning_rate)
 # ===============
 # Backend objects
 # ===============
@@ -104,6 +111,10 @@ def build_stdp(model, stdp, rule):
         post_scale,
         model.sig[conn]['weights'],
         model.sig[rule]['delta'],
+        pre_tau=stdp.pre_tau,
+        post_tau=stdp.post_tau,
+        pre_amp=stdp.pre_amp,
+        post_amp=stdp.post_amp,
         alf_p=stdp.alf_p,
         alf_n=stdp.alf_n,
         beta_p=stdp.beta_p,
@@ -111,6 +122,7 @@ def build_stdp(model, stdp, rule):
         bounds=stdp.bounds,
         max_weight=stdp.max_weight,
         min_weight=stdp.min_weight,
+        learning_rate=stdp.learning_rate,
     ))
 
     # expose these for probes
@@ -140,21 +152,29 @@ class SimSTDP(Operator):
             bounds,
             max_weight,
             min_weight,
+            pre_tau,
+            post_tau,
+            pre_amp,
+            post_amp,
+            learning_rate,
     ):
+        self.learning_rate = learning_rate
         self.alf_p = alf_p
         self.alf_n = alf_n
         self.beta_p = beta_p
         self.beta_n = beta_n
+        self.pre_tau = pre_tau
+        self.post_tau = post_tau
+        self.pre_amp = pre_amp
+        self.post_amp = post_amp
         self.bounds = str(bounds).lower()
         self.max_weight = max_weight
         self.min_weight = min_weight
-
         self.sets = []
         self.incs = []
-        self.i = 1
         self.reads = [pre_activities, post_activities, weights]
         self.updates = [delta, pre_trace, post_trace, pre_scale, post_scale]
-        
+        post_history = 0
     @property
     def delta(self):
         return self.updates[0]
@@ -196,13 +216,16 @@ class SimSTDP(Operator):
         post_scale = signals[self.post_scale]
         weights = signals[self.weights]
         delta = signals[self.delta]
-        i = 0
+
         # Could be configurable
         beta_pscale = 1.
         beta_nscale = 1.
 
-        if self.bounds == 'hard':
+        alphaP = self.learning_rate * (dt + self.alf_p)
+        alphaN = self.learning_rate * (dt + self.alf_n)
 
+        if self.bounds == 'hard':
+    
             def update_scales():
                 pre_scale[...] = ((self.max_weight - weights) > 0. ).astype(np.float64) * beta_pscale
                 post_scale[...] = -((self.min_weight + weights) < 0. ).astype(np.float64) * beta_nscale
@@ -224,38 +247,21 @@ class SimSTDP(Operator):
                 "Unsupported bounds type. Only 'hard', 'soft' and 'none' are supported")
 
         def step_stdp():
-            #update_scales()
+            
+            np.clip(weights, self.min_weight, self.max_weight, out=weights)
 
-            pre_trace[...]  += np.abs((dt * pre_activities) * ( self.i - pre_trace))
-            post_trace[...] += np.abs((dt * post_activities) * ( self.i - post_trace))
-            #pre_trace[...]  += (dt * pre_activities)
-            #post_trace[...] += (dt * post_activities)
+            pre_trace[...] += ((dt / self.pre_tau)
+                    * (-pre_trace
+                        + self.pre_amp * pre_activities))
+            post_trace[...] += ((dt / self.post_tau)
+                                * (-post_trace
+                                   + self.pre_amp * post_activities))
 
-            # for two neurons
-            # pre_activities ,pre_trace ,pre_scale 
-            # post_activities ,post_trace ,post_scale
-            # = (1,) (1,) (1, 1)
 
-            # increase 
-            # float(0.001 * math.exp(-1.5 * ((round(weight,6) - 0.0001)/(1.0 - 0.0001))))
-            # decrease 
-            # float(0.005 * math.exp(-2.5 * ((1.0 - round(weight,6))/(1.0 - 0.0001))))
-
-            if(np.max(weights) > 1 or np.min(weights) < 0):
-                weights[...] = (weights - np.min(weights)) / (np.max(weights) - np.min(weights))
-             
-
-            t = (post_trace[:,np.newaxis] - 50) - pre_trace
-            t[t>0] = 0 # decrease
-            t[t != 0] = 1 # increase
-
-            delta[...] = ( self.alf_p  *  
-            np.exp( -self.beta_p * (( weights - self.min_weight )/( self.max_weight - self.min_weight )) )
-            ) * ( t - 0)
-            - ( self.alf_n  * 
-            np.exp( -self.beta_n * (( self.max_weight - weights )/( self.max_weight - self.min_weight )) )
-            ) * ( 1 - t)
-
-            self.i = self.i + 1
+            delta[...] = ( alphaP  *  np.exp( -self.beta_p * (( weights - self.min_weight )/( self.max_weight - self.min_weight )) )) * pre_trace[np.newaxis, :] * post_activities[:, np.newaxis]  - ( alphaN  * np.exp( -self.beta_n * (( self.max_weight - weights )/( self.max_weight - self.min_weight )) )) * post_trace[:, np.newaxis] 
+            
+            #delta[delta != 0] = 
+            #delta[...] =  ( self.alf_p  *  np.exp( -self.beta_p * (( weights - self.min_weight )/( self.max_weight - self.min_weight )) )) * pre_trace[np.#newaxis, :] * post_activities[:, np.newaxis] * dt
+            #- ( self.alf_n  * np.exp( -self.beta_n * (( self.max_weight - weights )/( self.max_weight - self.min_weight )) )) * post_trace[:, np.newaxis] * #pre_activities * dt
 
         return step_stdp
