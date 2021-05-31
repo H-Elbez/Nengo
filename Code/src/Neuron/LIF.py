@@ -39,7 +39,10 @@ class LIF(AdaptiveLIF):
         args = super(LIF, self)._argreprs
         return args
 
-    def step(self, dt, J, output, voltage, refractory_time, adaptation,inhib):
+    # dt : timestamps 
+    # J : Input currents associated with each neuron.
+    # output : Output activities associated with each neuron.
+    def step(self, dt, J, output, voltage, refractory_time, adaptation,inhib):#inhib
         self.T = round(self.T+dt,3)
         
         if(np.max(J) != 0):
@@ -54,6 +57,12 @@ class LIF(AdaptiveLIF):
             inhib[...] = 0
             output[...] = 0
             J[...] = 0
+
+
+        # tInhibit = 10 MilliSecond
+        # AdaptiveThresholdAdd = 0.05  millivolts
+        # MembraneRefractoryDuration = = 1 MilliSecond
+        #print("J",J,"voltage",voltage,output)
 
         J = J - adaptation
         # ----------------------------
@@ -84,10 +93,11 @@ class LIF(AdaptiveLIF):
             voltage[voltage != np.max(voltage)] = 0 
             output[voltage != np.max(voltage)] = 0
             spiked_mask[voltage != np.max(voltage)] = 0
-            inhib[(voltage != np.max(voltage)) & (inhib == 0)] = 15
-       
+            inhib[(voltage != np.max(voltage)) & (inhib == 0)] = 15 #10 | 2
+        #print("voltage : ",voltage)
+        #voltage[inhib != 0] = 0 
         J[inhib != 0] = 0
-        
+        #print("\n",dt,J,inhib)
         # set v(0) = 1 and solve for t to compute the spike time
         t_spike = dt + tau_rc * np.log1p(
             -(voltage[spiked_mask] - self.spiking_threshold) / (J[spiked_mask] - self.spiking_threshold))
@@ -103,7 +113,11 @@ class LIF(AdaptiveLIF):
 
         adaptation += (dt / self.tau_n) * (self.inc_n * output - adaptation)
 
-        inhib[inhib != 0] += - 1        
+        #AdaptiveLIF.step(self, dt, J, output, voltage, refractory_time, adaptation)
+        inhib[inhib != 0] += - 1
+        #J[...] = 0
+        #output[...] = 0
+        
 
 #---------------------------------------------------------------------
 #add builder for LIF

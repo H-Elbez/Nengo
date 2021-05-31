@@ -1,7 +1,4 @@
-import sys
 import os
-sys.path.append(os.getcwd())
-
 import nengo
 import pickle
 import numpy as np
@@ -21,7 +18,7 @@ from src.Log.Heatmap import HeatMapSave,AllHeatMapSave
 img_rows, img_cols = 28, 28
 input_nbr = 1000
 Dataset = "Mnist"
-(image_train, label_train), (image_test, label_test) = load_mnist()
+(image_train, label_train), (image_test, label_test) = load_mnist("mnist.pkl.gz")
 
 image_train_filtered = []
 label_train_filtered = []
@@ -31,7 +28,6 @@ for i in range(0,input_nbr):
         label_train_filtered.append(label_train[i])
 
 print("actual input",len(label_train_filtered))
-print(np.bincount(label_train_filtered))
 
 image_train_filtered = np.array(image_train_filtered)
 label_train_filtered = np.array(label_train_filtered)
@@ -46,7 +42,7 @@ model = nengo.Network(label="My network",)
 
 sim_info = {
 "presentation_time" : 0.20,
-"pause_time" : 0.15,
+"pause_time" : 0.0,
 "n_in" : 784,
 "n_neurons" : 20,
 "amplitude" : 1,
@@ -133,10 +129,6 @@ with nengo.Simulator(model,dt=sim_info["dt"],progress_bar=True) as sim:
 
     sim.run(step_time * label_train_filtered.shape[0])
 
-
-if(not full_log):
-    log.closeLog()
-
 now = str(datetime.now().time())
 folder = "My_Sim_"+now
 
@@ -144,9 +136,6 @@ if not os.path.exists(folder):
     os.makedirs(folder)
 #save the model
 pickle.dump([sim.data[layer1_synapses_probe][-1],sim_info,learning_args,neuron_args], open( folder+"/mnist_params_STDP", "wb" ))
-
-print(np.min(sim.data[layer1_synapses_probe]),np.max(sim.data[layer1_synapses_probe]))
-print(sim.data[layer1_synapses_probe].shape)
 
 for i in range(0,(sim_info["n_neurons"])):
     if(full_log):

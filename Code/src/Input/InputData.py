@@ -1,6 +1,7 @@
 from nengo.params import NdarrayParam ,NumberParam
 from nengo.base import Process
 from decimal import Decimal
+import numpy as np
 
 class PresentInputWithPause(Process):
     """Present a series of inputs, each for the same fixed length of time.
@@ -17,7 +18,7 @@ class PresentInputWithPause(Process):
 
     inputs = NdarrayParam("inputs", shape=("...",))
     presentation_time = NumberParam("presentation_time", low=0, low_open=True)
-    pause_time = NumberParam("pause_time", low=0, low_open=True)
+    pause_time = NumberParam("pause_time", low=0, low_open=False)
 
     def __init__(self, inputs, presentation_time,pause_time, **kwargs):
         self.inputs = inputs
@@ -39,23 +40,12 @@ class PresentInputWithPause(Process):
         self.localT = round((dt if self.localT == 0 else self.localT),2)
 
         def step_presentinput(t):
-            #t = abs(t - pause_time)
+
             t = round(t,6)
-            # Pause
-            if t > ((presentation_time + pause_time ) * self.index + presentation_time) and t < round((presentation_time + pause_time) * (self.index + 1),6) :
-                return None
-            else:
-            # Send input
-                #if t >= (presentation_time + pause_time) * i:
-                #    t = t - (pause_time * i)
-                    
-                i = int((self.localT - dt) / (presentation_time))
-                self.localT += dt
 
-                if t == round((presentation_time + pause_time) * (self.index + 1),6):
-                    self.index +=1
+            total_time = presentation_time + pause_time
+            i = int(t / total_time)
+            ti = t % total_time
+            return np.zeros_like(inputs[0]) if ti > presentation_time else inputs[i % n]
 
-                i = 0
-                return inputs[i % n]
-       
         return step_presentinput
