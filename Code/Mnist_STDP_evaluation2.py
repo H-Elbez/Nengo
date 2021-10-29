@@ -10,7 +10,7 @@ import nengo
 import numpy as np
 from nengo_extras.data import load_mnist
 import pickle
-from src.Log.Stats import evaluation,classAttribution
+from src.Log.Stats import classAttribution, evaluation2
 from src.Input.InputData import PresentInputWithPause
 from src.Neuron.LIF import LIF
 
@@ -77,10 +77,8 @@ with model:
         1,
         label="input",
         neuron_type=nengo.LIF(amplitude=sim_info["amplitude"]),
-        #gain=nengo.dists.Choice([2]),
         encoders=nengo.dists.Choice([[1]]),
         intercepts=nengo.dists.Choice([0]),
-        #bias=nengo.dists.Choice([0])
         )
 
 
@@ -189,4 +187,4 @@ with nengo.Simulator(model,dt=sim_info["dt"]) as sim:
 
     sim.run(simTime)
 
-print("Accuracy :",evaluation(int((simTime / sim.dt) / input_nbr) ,sim.data[spikes_layer1_probe],label_test_filtered,neuronClasses),"%")
+print("Accuracy :",evaluation2(int((simTime / sim.dt) / input_nbr) ,sim.data[spikes_layer1_probe],label_test_filtered,neuronClasses),"%")
