@@ -55,3 +55,21 @@ def evaluation(classes,n_neurons,presentation_time,spikes_layer1_probe,label_tes
         total += 1
 
     return round((Good * 100)/(Good+Bad),2)
+
+def classAttribution(classes,n_neurons,presentation_time,spikes_layer1_probe,label_test_filtered):
+    
+    ConfMatrix = np.zeros((classes,n_neurons))
+    # confusion matrix
+    x = 0
+    for i in label_test_filtered:
+            tmp = spikes_layer1_probe[(x*presentation_time):(x+1)*presentation_time].sum(axis=0)
+            tmp[tmp < np.max(tmp)] = 0
+            tmp[tmp != 0] = 1
+            ConfMatrix[i] = ConfMatrix[i] + tmp
+            x = x + 1
+            
+    Classes = dict()
+    for i in range(0,n_neurons):
+        Classes[i] = np.argmax(ConfMatrix[:,i])
+    
+    return Classes
