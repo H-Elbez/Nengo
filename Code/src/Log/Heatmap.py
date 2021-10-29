@@ -36,23 +36,3 @@ def AllHeatMapSave(network,probe,folder,samples,neuron):
     print("Generate Video from Heatmaps ...")
     os.system("ffmpeg -pattern_type glob -i '"+os.getcwd()+"/"+folder+"/"+str(neuron)+"/"+"*.png' -vcodec mpeg4 -hide_banner -loglevel panic -y "+os.getcwd()+"/"+folder+"/"+str(neuron)+".mp4")
     os.system("rm "+os.getcwd()+"/"+folder+"/"+str(neuron)+" -R")
-
-def AllHeatMapSaveV2(network,data,folder,samples,neuron):
-    
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-    
-    os.makedirs(folder+"/"+str(neuron))
-    i = 0
-    step = samples / 100
-    print("Saving Heatmaps ...")
-    while i < samples:
-        plt.imshow(np.reshape(data[:,neuron][i],(28,28)),interpolation='none',cmap="jet",vmin=0,vmax=1) # , cmap=cm.jet
-        plt.savefig(folder+"/"+str(neuron)+"/"+str(i).zfill(10)+".png", pad_inches = 0,bbox_inches='tight',transparent=True)
-        plt.cla()
-        plt.close()
-        i = int(i + step)
-    
-    print("Generate Video from Heatmaps ...")
-    os.system("ffmpeg -pattern_type glob -i '"+os.getcwd()+"/"+folder+"/"+str(neuron)+"/"+"*.png' -vcodec mpeg4 -hide_banner -loglevel panic -y "+os.getcwd()+"/"+folder+"/"+str(neuron)+".mp4")
-    os.system("rm "+os.getcwd()+"/"+folder+"/"+str(neuron)+" -R")
